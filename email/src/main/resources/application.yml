@@ -1,0 +1,15 @@
+server:
+  port: 9093
+spring:
+  application:
+    name: email
+  mail:
+    host: smtp.qq.com
+    username: 2587150577@qq.com
+    password: aycbnhuvozccdjia #授权码
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:10086/eureka
+  instance:
+    prefer-ip-address: true
