@@ -1,0 +1,26 @@
+server:
+  port: 9095
+  servlet:
+    context-path: /
+spring:
+  application:
+    name: blog-elasticsearch
+    #
+    #springboot+elasticsearch注意事项
+    #1 springboot版本是2.1.5
+    #2 elasticsearch版本是6.2.2，不能是7.X以上，具体可参考官网
+  elasticsearch:
+    rest:
+      uris: 127.0.0.1:9200
+  data:
+    elasticsearch:
+      cluster-nodes: 127.0.0.1:9300
+    repositories:
+      enabled: true
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:10086/eureka
+  instance:
+    ip-address: 127.0.0.1
+    prefer-ip-address: true

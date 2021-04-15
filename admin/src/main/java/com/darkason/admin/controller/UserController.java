@@ -4,6 +4,7 @@ import com.darkason.admin.entity.User;
 import com.darkason.admin.service.UserService;
 import com.darkason.common.enums.StatusEnum;
 import com.darkason.common.response.Result;
+import io.swagger.annotations.ApiOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -72,6 +73,40 @@ public class UserController {
             result.setData(userService.getByUserId(userId));
         } catch (Exception e) {
             logger.error("获取用户详情发生错误：{}", e);
+            result = new Result(StatusEnum.FAIL);
+        }
+        return result;
+    }
+
+    //缓存穿透（缓存和数据库中都必不存在的数据，如userId=-1的数据）
+    @ApiOperation("获取用户详情2")
+    @RequestMapping(value = "getById2", method = RequestMethod.POST)
+    public Result getById2(Long userId) {
+        Result result = new Result(StatusEnum.SUCCESS);
+        if (StringUtils.isEmpty(userId)) {
+            return new Result(StatusEnum.PARAM_EXCEPTION);
+        }
+        try {
+            result.setData(userService.getUserById2(userId));
+        } catch (Exception e) {
+            logger.error("获取用户详情2发生错误：{}", e);
+            result = new Result(StatusEnum.FAIL);
+        }
+        return result;
+    }
+
+    //缓存击穿是指某个热点key在失效的瞬间（一般是缓存时间到期），持续的大并发请求穿破缓存，直接打到数据库
+    @ApiOperation("获取用户详情4")
+    @RequestMapping(value = "getById4", method = RequestMethod.POST)
+    public Result getById4(Long userId) {
+        Result result = new Result(StatusEnum.SUCCESS);
+        if (StringUtils.isEmpty(userId)) {
+            return new Result(StatusEnum.PARAM_EXCEPTION);
+        }
+        try {
+            result.setData(userService.getUserById4(userId));
+        } catch (Exception e) {
+            logger.error("获取用户详情4发生错误：{}", e);
             result = new Result(StatusEnum.FAIL);
         }
         return result;

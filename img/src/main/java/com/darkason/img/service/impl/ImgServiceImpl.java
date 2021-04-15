@@ -5,6 +5,7 @@ import com.darkason.common.response.Result;
 import com.darkason.img.client.BlogImageClient;
 import com.darkason.img.entity.BlogImage;
 import com.darkason.img.service.ImgService;
+import io.seata.spring.annotation.GlobalTransactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -37,6 +38,7 @@ public class ImgServiceImpl implements ImgService {
     private BlogImageClient blogImageClient;
 
     @Override
+    @GlobalTransactional(name = "seata_admin_blog", rollbackFor = Exception.class)
     public Result uploadBlogPic(MultipartHttpServletRequest request) {
         Result result = new Result(StatusEnum.SUCCESS);
         //博客图片

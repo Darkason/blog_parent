@@ -15,6 +15,10 @@ public interface UserService extends IService<User> {
 
     Map<String,Object> getByUserId(Long userId);
 
+    Map<String, Object> getUserById2(Long userId);
+
+    Map<String, Object> getUserById4(Long userId);
+
     Result uploadBlogPic(MultipartHttpServletRequest request);
 
     User login(String username, String password);

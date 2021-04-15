@@ -10,20 +10,26 @@ import com.darkason.admin.entity.User;
 import com.darkason.admin.service.UserService;
 import com.darkason.admin.utils.ShiroUtil;
 import com.darkason.common.constants.Constant;
+import com.darkason.common.constants.RedisConstant;
 import com.darkason.common.enums.StatusEnum;
 import com.darkason.common.response.Result;
 import com.darkason.common.utils.SnowflakeUtil;
+import io.seata.spring.annotation.GlobalTransactional;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import javax.annotation.Resource;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class UserServiceImpl extends ServiceImpl<UserDao, User> implements UserService {
@@ -40,8 +46,12 @@ public class UserServiceImpl extends ServiceImpl<UserDao, User> implements UserS
     @Resource
     private ImgClient imgClient;
 
+    @Autowired
+    private RedisTemplate redisTemplate;
+
     @Override
-    @Transactional(rollbackFor = Exception.class)
+//    @Transactional(rollbackFor = Exception.class)
+    @GlobalTransactional(name = "seata_admin_blog", rollbackFor = Exception.class)
     public boolean add(User user) {
         User newUser = new User();
         BeanUtils.copyProperties(user, newUser);
@@ -81,7 +91,8 @@ public class UserServiceImpl extends ServiceImpl<UserDao, User> implements UserS
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
+//    @Transactional(rollbackFor = Exception.class)
+    @GlobalTransactional(name = "seata_admin_blog", rollbackFor = Exception.class)
     public boolean deleteById(Long userId) {
         User user = new User();
         user.setUserId(userId);
@@ -104,6 +115,9 @@ public class UserServiceImpl extends ServiceImpl<UserDao, User> implements UserS
         //解决方案： 分布式事务
         //效果： 调用方如果发生异常回滚，服务方也要同时发生回滚
         //int a = 1 / 0;
+        if (userId == 10) {
+            throw new RuntimeException("分布式事务异常！");
+        }
         return b;
     }
 
@@ -121,6 +135,7 @@ public class UserServiceImpl extends ServiceImpl<UserDao, User> implements UserS
     }
 
     @Override
+    @GlobalTransactional(name = "seata_admin_blog", rollbackFor = Exception.class)
     public Result uploadBlogPic(MultipartHttpServletRequest request) {
         Result result = imgClient.uploadBlogPic(request);
         if (!result.getCode().equals(StatusEnum.SUCCESS.getCode())) {
@@ -139,5 +154,68 @@ public class UserServiceImpl extends ServiceImpl<UserDao, User> implements UserS
             }
         }
         return loginUser;
+    }
+
+
+    @Override
+    public Map<String, Object> getUserById2(Long userId) {
+        Map<String, Object> map = new HashMap<>();
+        User user = null;
+        String key = RedisConstant.STRING_USER + userId;
+        ValueOperations valueOperations = redisTemplate.opsForValue();
+
+        if (redisTemplate.hasKey(key)) {
+            user = (User) valueOperations.get(key);
+        } else {
+            user = this.getById(userId);
+            System.out.println("redis中不存在，查询数据库");
+            if (user != null) {
+                valueOperations.set(key, user);
+            } else {
+                // 简单粗暴，如果查询DB返回的数据为空，我们仍然把这个空值放到Redis缓存中
+                valueOperations.set(key, new User());
+                redisTemplate.expire(key, 60, TimeUnit.SECONDS);
+            }
+        }
+
+        map.put("user", user);
+        return map;
+    }
+
+    @Override
+    public Map<String, Object> getUserById4(Long userId) {
+        Map<String, Object> map = new HashMap<>();
+        User user = null;
+        String key = RedisConstant.STRING_USER + userId;
+        ValueOperations valueOperations = redisTemplate.opsForValue();
+
+        if (redisTemplate.hasKey(key)) {
+            user = (User) valueOperations.get(key);
+        } else {
+            String lockKey = RedisConstant.STRING_BLOCK_USER;
+            String value = UUID.randomUUID().toString() + System.nanoTime();
+            Boolean lock = valueOperations.setIfAbsent(lockKey, value);
+            try {
+                if (lock) {
+                    user = this.getById(userId);
+                    System.out.println("redis中不存在，查询数据库");
+                    if (user != null) {
+                        valueOperations.set(key, user);
+                    } else {
+                        // 简单粗暴，如果查询DB返回的数据为空，我们仍然把这个空值放到Redis缓存中
+                        valueOperations.set(key, new User());
+                        redisTemplate.expire(key, 60, TimeUnit.SECONDS);
+                    }
+                } else {
+                    //未获取到分布式锁
+                }
+            } finally {
+                if (value.equals(valueOperations.get(lockKey))) {
+                    redisTemplate.delete(lockKey);
+                }
+            }
+        }
+        map.put("user", user);
+        return map;
     }
 }
