@@ -27,10 +27,14 @@ public class EsBlogController {
 
     //查询博客（elasticsearch）
     @RequestMapping(value = "listBlog", method = RequestMethod.GET)
-    public Result listBlog(String content,Integer page) {
+    public Result listBlog(String content, Integer page) {
         Result result = new Result(StatusEnum.SUCCESS);
+        page = page == null ? 0 : page;
         try {
-            result.setData(esBlogService.listBlog(content,page));
+            //普通查询
+//            result.setData(esBlogService.listBlog(content,page));
+            //高亮查询
+            result.setData(esBlogService.listBlog2(content, page));
         } catch (Exception e) {
             logger.error("查询博客发生错误：{}", e);
             result = new Result(StatusEnum.FAIL);
